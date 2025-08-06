@@ -1,164 +1,156 @@
-# GoRedis - A Lightweight Redis-Compatible Server in Go
+# GoRedis
 
-GoRedis is a minimal Redis-compatible TCP server built using Go. It supports basic `GET` and `SET` operations, allowing interaction with clients using the Redis protocol. It is primarily designed for learning and experimentation purposes.
+A simple Redis-compatible in-memory key-value store implemented in Go.  
+Supports basic Redis commands like `SET`, `GET`, `EXISTS`, `DEL`, `CLIENT`, and `HELLO`.
 
----
+## Features
 
-## ✨ Features
-
-- Redis-compatible protocol parsing using [tidwall/resp](https://github.com/tidwall/resp)
-- Supports basic commands: `HELLO`, `CLIENT`, `SET`, and `GET`
-- In-memory key-value store with mutex protection
-- Concurrency-safe via goroutines and channels
-- Integration tested with the official `go-redis` client
-
----
-
-## 📁 Project Structure
-
-```
-.
-├── main.go            # Entry point
-├── server.go          # TCP server and message loop
-├── peer.go            # Peer connection lifecycle
-├── proto.go           # RESP protocol handling and command parsing
-├── keyval.go          # In-memory key-value store
-├── server_test.go     # Helper types for testing
-├── redis_test.go      # Integration test using go-redis client
-├── Makefile           # Build and run helper commands
-```
+- In-memory key-value storage
+- Basic Redis protocol support (RESP)
+- Expiration with `SET EX`
+- Command options: `NX`, `XX`
+- Tested with `redis-cli`
 
 ---
 
-## 🚀 Getting Started
+## Commands Supported
+
+- `SET key value [EX seconds] [NX|XX]`
+- `GET key`
+- `EXISTS key`
+- `DEL key`
+- `CLIENT <value>`
+- `HELLO <value>`
+
+---
+
+## Getting Started
 
 ### Prerequisites
 
 - Go 1.18+
-- Git
-
-### Installation
-
-1. Clone the repository:
-
-   ```bash
-   git clone https://github.com/yourusername/goredis.git
-   cd goredis
-   ```
-
-2. Install dependencies:
-
-   ```bash
-   go mod tidy
-   ```
-
-3. Build the project:
-
-   ```bash
-   make build
-   ```
+- [redis-cli](https://redis.io/docs/getting-started/installation/) installed (for testing)
 
 ---
 
-## ▶️ Running the Server
-
-To start the GoRedis server:
+### Build & Run
 
 ```bash
+# Clone the repo
+git clone https://github.com/vanhung1999dev/redis-clone
+cd redis-clone
+
+# Run the server
+
+```
+
+> By default, the server listens on `localhost:5001`. You can change it with the `--listenAddr` flag:
+
+```bash
+go run . --listenAddr :6379
+```
+> Start by using Makefile. You should install it in your computer to can run project.
+```
 make run
 ```
 
-The server will listen on port `:5001` by default.
-
 ---
 
-## 🧪 Testing
+### Example with `redis-cli`
 
-Run tests using:
+Start your server:
 
 ```bash
-make test
+go run .
 ```
 
-The tests include:
+In another terminal, connect using `redis-cli`:
 
-- Starting the server on `:5001`
-- Using the official `go-redis` client to connect
-- Verifying `SET` and `GET` functionality
+```bash
+redis-cli -p 5001
+```
 
----
+#### Try some commands:
 
-## 🛠️ Makefile Commands
+```bash
+127.0.0.1:5001> SET foo bar
+OK
 
-This project includes a `Makefile` to simplify common tasks:
+127.0.0.1:5001> GET foo
+"bar"
 
-```makefile
-# Variables
-BINARY_NAME = goredis
-BUILD_DIR = bin
-SRC = .
+127.0.0.1:5001> EXISTS foo
+(integer) 1
 
-# Default target
-.PHONY: all
-all: build
+127.0.0.1:5001> DEL foo
+(integer) 1
 
-# Build the binary
-.PHONY: build
-build:
-	@echo "Building $(BINARY_NAME)..."
-	@mkdir -p $(BUILD_DIR)
-	@go build -o $(BUILD_DIR)/$(BINARY_NAME) $(SRC)
+127.0.0.1:5001> GET foo
+(nil)
+```
 
-# Run the server
-.PHONY: run
-run: build
-	@echo "Running $(BINARY_NAME)..."
-	@./$(BUILD_DIR)/$(BINARY_NAME) --listenAddr :5001
+#### Set with expiration:
 
-# Run tests
-.PHONY: test
-test:
-	@echo "Running tests..."
-	@go test -v ./...
+```bash
+127.0.0.1:5001> SET temp "will-expire" EX 5
+OK
 
-# Clean build artifacts
-.PHONY: clean
-clean:
-	@echo "Cleaning up..."
-	@rm -rf $(BUILD_DIR)
+127.0.0.1:5001> GET temp
+"will-expire"
 
-# Format code
-.PHONY: fmt
-fmt:
-	@echo "Formatting code..."
-	@go fmt ./...
+# Wait 5 seconds...
 
-# Run linter (optional)
-.PHONY: lint
-lint:
-	@golangci-lint run
+127.0.0.1:5001> GET temp
+(nil)
 ```
 
 ---
 
-## 💬 Supported Commands
+## Project Structure
 
-| Command         | Description                      |
-|------------------|----------------------------------|
-| `HELLO`         | RESP handshake (returns map)     |
-| `CLIENT`        | Dummy handler, responds with OK  |
-| `SET key val`   | Stores a value for a key         |
-| `GET key`       | Retrieves value for a key        |
-
----
-
-## 🛡 License
-
-MIT License. See [LICENSE](LICENSE) for more details.
+```
+.
+├── main.go          # Entry point, server setup
+├── peer.go          # TCP server, peer connection management
+├── proto.go         # RESP command parsing
+├── types.go         # Command definitions and helpers
+├── keyval.go        # In-memory key-value store
+└── README.md
+```
 
 ---
 
-## 🙏 Acknowledgements
+## How It Works
 
-- [tidwall/resp](https://github.com/tidwall/resp) – RESP protocol parser
-- [go-redis/redis](https://github.com/redis/go-redis) – Official Go Redis client used for testing
+### Protocol
+
+This server uses the Redis Serialization Protocol (RESP), the same used by official Redis. That's why you can interact with it using `redis-cli`.
+
+### Memory Store
+
+It uses a simple in-memory map protected by mutexes for thread safety. TTL (time to live) expiration is supported by checking timestamps on `GET`.
+
+---
+
+## TODOs / Possible Enhancements
+
+- [ ] Add support for `PING`, `INCR`, `MGET`, etc.
+- [ ] Add persistence (RDB or AOF)
+- [ ] Background TTL cleanup
+- [ ] Pub/Sub support
+- [ ] Authentication with `AUTH`
+- [ ] Benchmarks and load testing
+
+---
+
+## License
+
+MIT License.  
+Feel free to use, modify, and share.
+
+---
+
+## Author
+
+**Your Name**  
+[GitHub](https://github.com/vanhung1999dev)
