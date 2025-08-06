@@ -21,6 +21,9 @@ type Command interface {
 
 type SetCommand struct {
 	key, val []byte
+	expire   int64
+	nx       bool
+	xx       bool
 }
 
 type ClientCommand struct {
@@ -51,5 +54,6 @@ func respWriteMap(m map[string]string) []byte {
 		rw.WriteString(k)
 		rw.WriteString(":" + v)
 	}
+
 	return buf.Bytes()
 }

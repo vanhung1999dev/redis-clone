@@ -64,9 +64,27 @@ func (s *Server) Start() error {
 func (s *Server) handleMessage(msg Message) error {
 	switch v := msg.cmd.(type) {
 	case SetCommand:
+		// Check NX/XX constraints
+		_, exists := s.kv.Get(v.key)
+
+		if v.nx && exists {
+			// NX: don't set if key exists
+			_, err := msg.peer.conn.Write([]byte("$-1\r\n"))
+			return err
+		}
+		if v.xx && !exists {
+			// XX: don't set if key doesn't exist
+			_, err := msg.peer.conn.Write([]byte("$-1\r\n"))
+			return err
+		}
+
 		if err := s.kv.Set(v.key, v.val); err != nil {
 			return err
 		}
+		if v.expire > 0 {
+			s.kv.SetTTL(v.key, v.expire)
+		}
+
 		_, err := msg.peer.conn.Write([]byte("+OK\r\n"))
 		return err
 

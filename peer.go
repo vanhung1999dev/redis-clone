@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"strconv"
 	"strings"
 
 	"github.com/tidwall/resp"
@@ -84,10 +85,40 @@ func (p *Peer) readLoop() error {
 				sendErr("wrong number of arguments for 'set' command")
 				continue
 			}
-			cmd = SetCommand{
+
+			setCmd := SetCommand{
 				key: arr[1].Bytes(),
 				val: arr[2].Bytes(),
 			}
+
+			for i := 3; i < len(arr); i++ {
+				opt := strings.ToLower(arr[i].String())
+				switch opt {
+				case "ex":
+					if i+1 >= len(arr) {
+						sendErr("missing expire time for 'ex'")
+						continue
+					}
+
+					ttlStr := arr[i+1].String()
+					ttl, err := strconv.Atoi(ttlStr)
+					if err != nil || ttl <= 0 {
+						sendErr("invalid expire time in 'set' command")
+						continue
+					}
+					setCmd.expire = int64(ttl)
+					i++ // skip TTL value
+				case "nx":
+					setCmd.nx = true
+				case "xx":
+					setCmd.xx = true
+				default:
+					sendErr(fmt.Sprintf("unknown option '%s' in set command", opt))
+					continue
+				}
+			}
+
+			cmd = setCmd // ✅ This is the fix: assign to outer variable
 
 		case CommandHELLO:
 			if len(arr) < 2 {
